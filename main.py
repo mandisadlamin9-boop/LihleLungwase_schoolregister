@@ -14,7 +14,7 @@ def main(page: ft.Page):
     page.theme = ft.Theme(color_scheme_seed=INK)
 
     students = load_students()
-    state = {"editing": None}
+    state = {"editing": None, "list": None, "count": None}
 
     def close_dialog(e):
         page.pop_dialog()
@@ -41,6 +41,7 @@ def main(page: ft.Page):
             ),
         )
 
+    # ---------- navigation ----------
     async def go_home(e=None):
         await page.push_route("/")
 
@@ -52,43 +53,32 @@ def main(page: ft.Page):
         state["editing"] = student
         await page.push_route("/edit")
 
-    # actions 
+    # ---------- actions ----------
     def toggle_present(student, value):
         student.present = value
         save_students(students)
-        route_change()
-
-    def delete_student(student):
-        if student in students:
-            students.remove(student)
-            save_students(students)
-        page.pop_dialog()
-        route_change()
+        refresh_home()
 
     def confirm_delete(student):
-        dialog = ft.AlertDialog(
-            title=ft.Text("Remove student?"),
-            content=ft.Text(f"{student.name} {student.surname} will be taken off the register."),
-        )
-
-        def cancel(e):
-            dialog.open = False
-            page.update()
-
         def remove(e):
             if student in students:
                 students.remove(student)
                 save_students(students)
-            dialog.open = False
-            route_change()
+            page.pop_dialog()
+            refresh_home()
 
-        dialog.actions = [
-            ft.TextButton("Cancel", on_click=cancel),
-            ft.TextButton("Remove", on_click=remove),
-        ]
-        page.show_dialog(dialog)
+        page.show_dialog(
+            ft.AlertDialog(
+                title=ft.Text("Remove student?"),
+                content=ft.Text(f"{student.name} {student.surname} will be taken off the register."),
+                actions=[
+                    ft.TextButton("Cancel", on_click=close_dialog),
+                    ft.TextButton("Remove", on_click=remove),
+                ],
+            )
+        )
 
-    # home view 
+    # ---------- home view ----------
     def student_row(student):
         colour = INK if student.present else RED_PENCIL
         return ft.Container(
@@ -136,12 +126,23 @@ def main(page: ft.Page):
             ),
         )
 
-    def home_view():
-        present_count = sum(1 for s in students if s.present)
+    def build_rows():
         if students:
-            rows = [student_row(s) for s in students]
-        else:
-            rows = [ft.Text("The register is empty.", color=CHALK, size=18, font_family="Georgia")]
+            return [student_row(s) for s in students]
+        return [ft.Text("The register is empty.", color=CHALK, size=18, font_family="Georgia")]
+
+    def count_text():
+        present_count = sum(1 for s in students if s.present)
+        return f"{present_count} of {len(students)} present today"
+
+    def refresh_home():
+        state["count"].value = count_text()
+        state["list"].controls = build_rows()
+        page.update()
+
+    def home_view():
+        state["count"] = ft.Text(count_text(), size=15, color=CHALK)
+        state["list"] = ft.Column(build_rows(), spacing=10, scroll=ft.ScrollMode.AUTO, expand=True)
 
         return ft.View(
             route="/",
@@ -151,9 +152,9 @@ def main(page: ft.Page):
                     [
                         ft.Text("The Class Register", size=34, color=CHALK,
                                 weight=ft.FontWeight.BOLD, font_family="Georgia"),
-                        ft.Text(f"{present_count} of {len(students)} present today", size=15, color=CHALK),
+                        state["count"],
                         ft.Divider(color=CHALK, height=20),
-                        ft.Column(rows, spacing=10, scroll=ft.ScrollMode.AUTO, expand=True),
+                        state["list"],
                         ft.Button(
                             "Add student",
                             icon=ft.Icons.ADD,
@@ -165,7 +166,7 @@ def main(page: ft.Page):
             ],
         )
 
-    # add / edit view 
+    # ---------- add / edit view ----------
     def form_view(student):
         editing = student is not None
 
@@ -178,7 +179,7 @@ def main(page: ft.Page):
             border_color=INK, focused_border_color=RED_PENCIL,
         )
         grade_field = ft.TextField(
-            label="Grade (number)", value=student.grade if editing else "",
+            label="Grade (1-12)", value=student.grade if editing else "",
             border_color=INK, focused_border_color=RED_PENCIL,
         )
         present_box = ft.Checkbox(
@@ -240,7 +241,7 @@ def main(page: ft.Page):
             controls=[chalkboard([card], centered=True)],
         )
 
-    # routing 
+    # ---------- routing ----------
     def route_change(e=None):
         page.views.clear()
         page.views.append(home_view())

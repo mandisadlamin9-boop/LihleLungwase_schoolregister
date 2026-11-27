@@ -1,0 +1,19 @@
+Peer Feedback Notes - The Class Register
+
+Tester: Zama
+Task given: Add, edit and delete a student on the register.
+
+Tester's observations:
+- The tester found the layout clear and said the buttons stood out.
+- The tester said the buttons and validation messages were well labelled
+  and easy to follow.
+- After clicking Remove on the delete pop-up, the pop-up stayed on screen
+  until the tester clicked elsewhere. The tester thought the app had frozen.
+
+Tester's suggestion:
+- The pop-up should close as soon as Remove is clicked, without needing
+  another click.
+
+My response (changes made):
+- I fixed the delete pop up so it now closes immediately when Remove is
+  clicked, and the list updates straight away.
